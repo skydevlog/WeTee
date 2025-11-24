@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>WeTee - 회원가입</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="login-container" style="margin-top: 50px;">
+        <h2>WeTee 회원가입</h2>
+        <form id="signupForm">
+            <input type="text" id="name" placeholder="이름" required>
+            
+            <input type="number" id="age" placeholder="나이" required>
+            
+            <select id="gender" required>
+                <option value="" disabled selected>성별 선택</option>
+                <option value="male">남성</option>
+                <option value="female">여성</option>
+            </select>
+            
+            <input type="email" id="signupId" placeholder="아이디 (이메일)" required>
+            
+            <input type="password" id="signupPw" placeholder="비밀번호" required>
+            <p id="pwErrorMsg" class="error-text"></p>
+
+            <button type="submit" class="login-btn">가입하기</button>
+        </form>
+        
+        <div class="signup-link">
+            이미 계정이 있으신가요? <a href="login.html">로그인</a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

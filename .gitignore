@@ -1,0 +1,14 @@
+# 1. 의존성 모듈 (가장 중요! 절대 올리면 안 됨)
+node_modules/
+
+# 2. 환경변수 파일 (비밀번호, API 키 등 보안 정보)
+.env
+
+# 3. 운영체제 시스템 파일 (불필요한 파일)
+.DS_Store
+Thumbs.db
+
+# 4. 에러 로그 등
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -1,0 +1,95 @@
+/* 기본 설정 */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 헤더 (상단 오른쪽 버튼) */
+header {
+    padding: 20px;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: flex-end; /* 오른쪽 정렬 */
+}
+
+.nav-btn {
+    padding: 8px 16px;
+    background-color: #333;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* 메인 본문 (중앙 정렬) */
+main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.logo-text {
+    font-size: 48px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 로그인 폼 스타일 */
+.login-container {
+    width: 300px;
+    margin: 100px auto;
+    padding: 40px;
+    border: 1px solid #ddd;
+    text-align: center;
+    border-radius: 8px;
+}
+
+.login-container input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+/* 회원가입 링크 스타일 */
+.signup-link {
+    margin-top: 15px;
+    font-size: 14px;
+}
+.signup-link a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* 성별 선택 박스 스타일 (input과 비슷하게 맞춤) */
+select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    border: 1px solid #767676;
+    border-radius: 2px;
+}
+
+/* 에러 메시지 (빨간색) */
+.error-text {
+    color: red;
+    font-size: 12px;
+    text-align: left;
+    margin: -5px 0 10px 5px; /* 위치 미세 조정 */
+    display: none; /* 평소에는 숨김 */
+}
