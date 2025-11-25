@@ -1,105 +1,127 @@
 const express = require('express');
-const { Pool } = require('pg'); // Client 대신 Pool (연결 풀) 임포트
+const { Pool } = require('pg'); // pg 라이브러리에서 Pool(연결 관리자) 기능을 가져옵니다.
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path'); // 파일 경로 처리
+const path = require('path'); // 파일 경로를 안전하게 다루기 위한 도구
 
 const app = express();
-app.use(cors()); // 프론트엔드와 백엔드 간 통신 허용
-app.use(bodyParser.json()); // JSON 데이터 해석
 
-// **프론트엔드 정적 파일 서빙 설정 (Render 배포용)**
-// public 폴더의 HTML, CSS, script.js 파일들을 브라우저에 제공합니다.
+/* ============================
+    미들웨어 설정 (기본 설정)
+    ============================ */
+app.use(cors()); // 다른 주소(프론트엔드)에서 서버로 요청을 보낼 때 허용해줍니다.
+app.use(bodyParser.json()); // 요청으로 들어온 데이터를 JSON 형식으로 해석해줍니다.
+
+// **프론트엔드 파일 위치 지정**
+// 'public' 폴더 안에 있는 HTML, CSS, JS 파일들을 브라우저가 볼 수 있게 개방합니다.
 app.use(express.static(path.join(__dirname, 'public')));
 
-// '/' 경로 요청 처리: 'Cannot GET /' 오류를 해결하고 login.html 페이지를 응답합니다.
+// 루트 경로('/')로 접속했을 때 로그인 화면(login.html)을 보여줍니다.
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// ----------------------------------------------------
-// 💡 PostgreSQL 연결 풀 (Pool) 사용 로직
-// ----------------------------------------------------
-let pool; // Pool 객체를 전역으로 선언
+/* ============================
+    데이터베이스 연결 설정 (PostgreSQL Pool 최적화)
+    ============================ */
+// 1. Pool 객체는 전역에서 '한 번만' 생성합니다. (자원 낭비 방지)
+const pool = new Pool({
+    // Render가 제공하는 DB 주소(DATABASE_URL)를 사용합니다.
+    connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/wetee',
+    
+    // [중요] Render 무료 DB가 자주 끊기는 것을 방지하기 위한 설정입니다.
+    idleTimeoutMillis: 30000, // 30초 동안 사용하지 않으면 연결을 정리해서 오류를 방지합니다.
+    max: 20 // 동시에 연결할 수 있는 최대 개수입니다.
+});
 
-function handleConnectPool() {
-    // 1. PostgreSQL 연결 풀 설정
-    pool = new Pool({
-        // Render는 Pool 객체에도 DATABASE_URL을 환경 변수로 제공합니다.
-        connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/wetee',
-        // 옵션: 유휴 연결 유지 시간 설정 (Render 환경에서 안정성 향상)
-        idleTimeoutMillis: 30000, // 30초 후 유휴 연결 정리
-        max: 20 // 최대 연결 개수
-    });
+// Pool 내부에서 발생하는 에러 처리 (서버 종료 방지)
+pool.on('error', (err) => {
+    console.error('⚠️ DB 연결 풀 에러:', err.message);
+});
 
-    // Pool에서 오류 발생 시 처리 로직
-    pool.on('error', (err, client) => {
-        // 이 오류는 Pool 내부에서 자동으로 재연결을 시도하므로 서버를 종료하지 않습니다.
-        console.error('PostgreSQL Pool 오류 발생:', err.message, err.code);
-    });
-
-    // 초기 연결 테스트 (Pool 초기화 성공 확인)
+// 2. 연결 재시도 로직 (기존 Pool 객체 재사용)
+function connectToDB() {
+    console.log('🔄 DB 연결을 시도합니다...');
+    
+    // pool.connect()는 Pool 객체 자체를 재사용합니다.
     pool.connect((err, client, done) => {
         if (err) {
-            console.error('PostgreSQL 연결 풀 초기화 실패: 재시도 중...', err.code);
-            // 초기 연결 실패 시 2초 후 재시도
-            setTimeout(handleConnectPool, 2000); 
+            console.error(`❌ DB 연결 실패 (코드: ${err.code})`);
+            console.log('⏳ 5초 후 다시 시도합니다...');
+            // 2초 -> 5초로 늘려서 불필요한 로그 감소
+            setTimeout(connectToDB, 5000); 
             return;
         }
-        client.release(); // 연결 테스트 후 클라이언트를 Pool로 반환
-        console.log('PostgreSQL 연결 풀 초기화 및 DB 접속 성공!');
-        // DB 연결 성공 후에는 별도의 재연결 루프가 필요 없습니다.
+        
+        // 연결 성공 시
+        client.release(); // 빌려온 연결을 다시 Pool에 돌려놓습니다.
+        console.log('✅ PostgreSQL 데이터베이스 연결 성공!');
     });
 }
 
-// 최초 연결 시도
-handleConnectPool();
+// 서버 시작 시 최초 연결 시도
+connectToDB();
 
 
-// 2. 회원가입 API ( /signup )
+/* ============================
+    API 라우터 (회원가입 & 로그인)
+    ============================ */
+
+// 1. 회원가입 처리 ( /signup )
 app.post('/signup', async (req, res) => {
+    // 프론트엔드에서 보내준 데이터를 받아서 변수에 저장합니다.
     const { name, age, gender, id, pw } = req.body;
     
-    // SQL 명령어: PostgreSQL은 파라미터를 $1, $2, ... 형식으로 사용합니다.
+    // SQL 명령어: 데이터를 DB에 집어넣습니다. ($1, $2... 는 보안을 위한 자리표시자입니다)
     const sql = "INSERT INTO users (email, password, name, age, gender) VALUES ($1, $2, $3, $4, $5)";
     
     try {
-        await pool.query(sql, [id, pw, name, age, gender]); // dbClient.query 대신 pool.query 사용
+        // DB에 명령을 보냅니다. (pool.query() 사용)
+        await pool.query(sql, [id, pw, name, age, gender]);
+        
+        // 성공하면 성공 메시지를 보냅니다.
         res.json({ success: true, message: '회원가입 성공!' });
     } catch (err) {
-        console.error('회원가입 쿼리 오류:', err); 
-        // PostgreSQL의 중복 오류 코드('23505')를 확인하여 메시지를 분기할 수 있습니다.
+        console.error('회원가입 실패:', err); 
+        
+        // 에러 코드 '23505'는 이미 있는 데이터(중복)라는 뜻입니다.
         if (err.code === '23505') {
-            return res.status(400).json({ success: false, message: '가입 실패: 이미 존재하는 이메일입니다.' });
+            return res.status(400).json({ success: false, message: '이미 가입된 이메일입니다.' });
         }
-        res.status(500).json({ success: false, message: '회원가입 중 서버 오류 발생' });
+        // 그 외의 알 수 없는 서버 오류
+        res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
     }
 });
 
-// 3. 로그인 API ( /login )
+// 2. 로그인 처리 ( /login )
 app.post('/login', async (req, res) => {
     const { id, pw } = req.body;
 
-    // SQL 명령어: PostgreSQL 파라미터 $1, $2
+    // SQL 명령어: 이메일($1)과 비밀번호($2)가 모두 맞는 사람이 있는지 찾아봅니다.
     const sql = "SELECT name FROM users WHERE email = $1 AND password = $2";
 
     try {
-        const results = await pool.query(sql, [id, pw]); // dbClient.query 대신 pool.query 사용
+        const results = await pool.query(sql, [id, pw]); // DB 조회 시작
         
-        if (results.rows.length > 0) { // PostgreSQL은 results.rows를 통해 결과를 확인
-            const user = results.rows[0];
+        // 조회 결과가 1개 이상이면(로그인 성공)
+        if (results.rows.length > 0) {
+            const user = results.rows[0]; // 찾은 사용자 정보
             res.json({ success: true, name: user.name });
         } else {
+            // 조회 결과가 없으면(로그인 실패)
             res.json({ success: false, message: '아이디 또는 비밀번호가 틀렸습니다.' });
         }
     } catch (err) {
-        console.error('로그인 쿼리 오류:', err);
+        console.error('로그인 실패:', err);
         return res.status(500).json({ success: false, message: '서버 오류' });
     }
 });
 
-// 서버 실행 (환경 변수 PORT 사용)
+/* ============================
+    서버 실행
+    ============================ */
+// Render가 지정해준 포트가 있으면 그걸 쓰고, 없으면 3000번을 씁니다.
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`서버가 ${PORT}번 포트에서 실행 중입니다.`);
+    console.log(`🚀 서버가 ${PORT}번 포트에서 실행 중입니다.`);
 });
