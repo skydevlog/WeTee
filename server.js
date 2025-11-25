@@ -18,22 +18,47 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// 1. 데이터베이스 연결 설정
-// **Render 배포 시 환경 변수(Environment Variables) 사용으로 수정**
-const db = mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '127C4@gpi', // 로컬 개발 시 기본값 '1234' (DB_PASSWORD 환경 변수에 실제 비밀번호 설정 필요)
-    database: 'wetee'
-});
+// ----------------------------------------------------
+// 💡 수정 및 추가: DB 연결 안정화 로직 (자동 재연결)
+// ----------------------------------------------------
+let db; // DB 연결 객체를 전역으로 선언
 
-db.connect((err) => {
-    if (err) {
-        console.error('DB 연결 실패:', err);
-    } else {
-        console.log('MySQL 데이터베이스 연결 성공!');
-    }
-});
+function handleDisconnect() {
+    // 1. 데이터베이스 연결 설정
+    // **Render 배포 시 환경 변수(Environment Variables) 사용으로 수정**
+    db = mysql.createConnection({
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '127C4@gpi', // 로컬 개발 시 기본값 '1234' (DB_PASSWORD 환경 변수에 실제 비밀번호 설정 필요)
+        database: 'wetee'
+    });
+
+    db.connect((err) => {
+        if (err) {
+            console.error('DB 연결 실패: 재시도 중...', err.code);
+            // 2초 후 재귀적으로 재연결 시도
+            setTimeout(handleDisconnect, 2000); 
+        } else {
+            console.log('MySQL 데이터베이스 연결 성공!');
+        }
+    });
+
+    // 2. 연결 종료 이벤트 리스너 추가 (가장 중요!)
+    // 연결이 끊기면 (fatal error 포함) 자동으로 재연결 시도
+    db.on('error', function(err) {
+        if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
+            console.error('DB 연결이 끊어졌습니다. 재연결을 시도합니다.');
+            handleDisconnect(); // 재연결 함수 호출
+        } else {
+            // 다른 치명적인 오류는 throw
+            throw err;
+        }
+    });
+}
+
+// 최초 연결 시도
+handleDisconnect();
+
 
 // 2. 회원가입 API ( /signup )
 app.post('/signup', (req, res) => {
@@ -44,7 +69,7 @@ app.post('/signup', (req, res) => {
     
     db.query(sql, [id, pw, name, age, gender], (err, result) => {
         if (err) {
-            console.error(err);
+            console.error('회원가입 쿼리 오류:', err); // 구체적인 오류 로그 추가
             res.status(500).json({ success: false, message: '회원가입 중 오류 발생 (아이디 중복 등)' });
         } else {
             res.json({ success: true, message: '회원가입 성공!' });
@@ -60,7 +85,10 @@ app.post('/login', (req, res) => {
     const sql = "SELECT * FROM users WHERE email = ? AND password = ?";
 
     db.query(sql, [id, pw], (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: '서버 오류' });
+        if (err) {
+            console.error('로그인 쿼리 오류:', err); // 구체적인 오류 로그 추가
+            return res.status(500).json({ success: false, message: '서버 오류' });
+        }
 
         if (results.length > 0) {
             // 로그인 성공 (찾은 사용자 정보 보냄)
