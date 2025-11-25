@@ -14,11 +14,12 @@ app.use(bodyParser.json()); // 요청으로 들어온 데이터를 JSON 형식�
 
 // **프론트엔드 파일 위치 지정**
 // 'public' 폴더 안에 있는 HTML, CSS, JS 파일들을 브라우저가 볼 수 있게 개방합니다.
-app.use(express.static(path.join(__dirname, 'public')));
+// 그리고 index.html 자동 연결 끄기
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
-// 루트 경로('/')로 접속했을 때 로그인 화면(login.html)을 보여줍니다.
+// 접속 시 무조건 로그인 페이지로 이동
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.redirect('/login.html');
 });
 
 /* ============================
