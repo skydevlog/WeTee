@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <title>WeTee - 메인</title>
-    <h3>안녕하세요. WeTee에 오신것을 환영합니다.</h3>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <header>
         <div class="header-content">
+            <span id="welcomeMsg"></span>
             <button id="logoutBtn" class="nav-btn">로그아웃</button>
         </div>
     </header>
 
     <main>
         <h1 class="logo-text">WeTee</h1>
+        <h3 class="sub-text">안녕하세요. WeTee에 오신 것을 환영합니다.</h3>
     </main>
 
     <script src="script.js"></script>
     <script>
-        // 페이지 로드 시 로그인 체크
+        // 페이지 로드시 로그인 체크
         checkLoginStatus();
     </script>
 </body>

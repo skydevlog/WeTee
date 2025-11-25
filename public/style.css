@@ -1,95 +1,147 @@
 /* 기본 설정 */
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
+    font-family: 'Arial', sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: #fff; /* 배경색 명시 */
 }
 
-/* 헤더 (상단 오른쪽 버튼) */
+/* 헤더 */
 header {
     padding: 20px;
     background-color: #f4f4f4;
+    border-bottom: 1px solid #e0e0e0; /* 헤더 구분선 추가 */
     display: flex;
     justify-content: flex-end; /* 오른쪽 정렬 */
+    align-items: center; /* 세로 중앙 정렬 */
 }
 
+/* 환영 메시지 (index.html) */
+#welcomeMsg {
+    margin-right: 15px;
+    font-weight: bold;
+    color: #333;
+    font-size: 16px;
+}
+
+/* 로그아웃 버튼 */
 .nav-btn {
     padding: 8px 16px;
     background-color: #333;
     color: white;
     border: none;
+    border-radius: 4px; /* 버튼 둥글게 */
     cursor: pointer;
     font-size: 14px;
+    transition: background-color 0.2s; /* 마우스 올렸을 때 부드럽게 */
 }
 
-/* 메인 본문 (중앙 정렬) */
+.nav-btn:hover {
+    background-color: #555;
+}
+
+/* 메인 본문 */
 main {
     flex: 1;
     display: flex;
+    flex-direction: column; /* 세로 정렬 (로고 아래에 텍스트 오도록) */
     justify-content: center;
     align-items: center;
 }
 
 .logo-text {
-    font-size: 48px;
-    font-weight: bold;
+    font-size: 60px; /* 로고 크기 키움 */
+    font-weight: 800;
     color: #333;
+    margin: 0 0 20px 0; /* 아래쪽 여백 추가 */
 }
 
-/* 로그인 폼 스타일 */
+/* 메인 화면 서브 텍스트 (h3) */
+.sub-text {
+    font-size: 18px;
+    color: #666;
+    font-weight: normal;
+    margin: 0;
+}
+
+/* 로그인/회원가입 박스 공통 */
 .login-container {
-    width: 300px;
-    margin: 100px auto;
+    width: 320px; /* 너비 약간 넓힘 */
+    margin: 100px auto; /* 상하 여백 100px, 좌우 중앙 정렬 */
     padding: 40px;
     border: 1px solid #ddd;
     text-align: center;
-    border-radius: 8px;
+    border-radius: 12px; /* 박스 둥글게 */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* 그림자 효과 추가 */
 }
 
-.login-container input {
+.login-container h2 {
+    margin-top: 0;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+/* 입력 필드 (input, select) */
+.login-container input,
+select {
     width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
     box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
+/* 입력 필드 포커스 효과 */
+.login-container input:focus,
+select:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+/* 로그인/가입 버튼 */
 .login-btn {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     background-color: #007bff;
     color: white;
     border: none;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 10px;
 }
 
-/* 회원가입 링크 스타일 */
-.signup-link {
-    margin-top: 15px;
-    font-size: 14px;
+.login-btn:hover {
+    background-color: #0056b3;
 }
+
+/* 링크 스타일 */
+.signup-link {
+    margin-top: 20px;
+    font-size: 13px;
+    color: #666;
+}
+
 .signup-link a {
     color: #007bff;
     text-decoration: none;
     font-weight: bold;
 }
 
-/* 성별 선택 박스 스타일 (input과 비슷하게 맞춤) */
-select {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    box-sizing: border-box;
-    border: 1px solid #767676;
-    border-radius: 2px;
+.signup-link a:hover {
+    text-decoration: underline;
 }
 
-/* 에러 메시지 (빨간색) */
+/* 에러 메시지 */
 .error-text {
-    color: red;
+    color: #e74c3c; /* 더 선명한 빨간색 */
     font-size: 12px;
     text-align: left;
-    margin: -5px 0 10px 5px; /* 위치 미세 조정 */
-    display: none; /* 평소에는 숨김 */
+    margin: -5px 0 15px 5px;
+    display: none;
 }
