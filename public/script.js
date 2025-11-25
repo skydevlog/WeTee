@@ -3,20 +3,42 @@
 const SERVER_URL = "";
 
 /* ============================
-   1. 메인 화면 로직
+   1. 페이지 로드 및 로그인 체크 (통합됨)
    ============================ */
 function checkLoginStatus() {
     const isLoggedIn = localStorage.getItem('isLoggedIn'); // 로그인 여부만 브라우저에 남김
     const userName = localStorage.getItem('currentUser');
+    // 현재 페이지가 메인(index.html)인지 확인 (루트 경로 '/' 포함)
+    const isIndexPage = window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/');
 
-    if (!isLoggedIn && window.location.pathname.includes('index.html')) {
-        alert("로그인이 필요한 서비스입니다.");
-        window.location.href = 'login.html';
-    } else if (isLoggedIn && document.getElementById('welcomeMsg')) {
-        document.getElementById('welcomeMsg').innerText = userName + "님 안녕하세요!";
+    // [메인 화면 로직]
+    if (isIndexPage) {
+        if (!isLoggedIn) {
+            // 1. 비로그인 상태면 즉시 쫓아냄
+            alert("로그인이 필요한 서비스입니다.");
+            window.location.href = 'login.html';
+        } else {
+            // 2. 로그인 상태면 환영 메시지 표시 및 화면 공개
+            if (document.getElementById('welcomeMsg')) {
+                document.getElementById('welcomeMsg').innerText = userName + "님 안녕하세요!";
+            }
+            // 숨겨뒀던 화면을 짠! [cite_start]하고 보여줌 [cite: 1]
+            document.body.style.display = 'flex';
+        }
+    } 
+    // [로그인/회원가입 화면 로직]
+    else {
+        // 메인 화면이 아니면 그냥 보여줌 (혹시 숨겨져 있을 경우 대비)
+        document.body.style.display = 'flex';
     }
 }
 
+// 페이지가 로드되자마자 실행
+checkLoginStatus();
+
+/* ============================
+   2. 로그아웃 로직
+   ============================ */
 const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', function() {
@@ -28,13 +50,13 @@ if (logoutBtn) {
 }
 
 /* ============================
-   2. 회원가입 로직
+   3. 회원가입 로직
    ============================ */
 const signupForm = document.getElementById('signupForm');
 const signupPwInput = document.getElementById('signupPw');
 const pwErrorMsg = document.getElementById('pwErrorMsg');
 
-// 비밀번호 검증 (기존과 동일)
+// 비밀번호 검증
 function validatePassword() {
     const pw = signupPwInput.value;
     const regex = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$/;
@@ -62,7 +84,6 @@ if (signupForm) {
             id: document.getElementById('signupId').value,
             pw: document.getElementById('signupPw').value
         };
-
         // ★ 서버로 데이터 전송 (fetch) ★
         fetch(`${SERVER_URL}/signup`, {
             method: 'POST',
@@ -83,7 +104,7 @@ if (signupForm) {
 }
 
 /* ============================
-   3. 로그인 로직
+   4. 로그인 로직
    ============================ */
 const loginForm = document.getElementById('loginForm');
 
