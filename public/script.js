@@ -1,5 +1,6 @@
 // 서버 주소 (Node.js 서버)
-const SERVER_URL = "http://localhost:3000";
+// Render에 동시 배포 시, 같은 도메인을 사용하므로 빈 문자열(상대 경로)로 설정합니다.
+const SERVER_URL = "";
 
 /* ============================
    1. 메인 화면 로직
