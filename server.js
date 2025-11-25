@@ -1,5 +1,5 @@
 const express = require('express');
-const { Client } = require('pg'); // MySQL 대신 PostgreSQL 클라이언트 임포트
+const { Pool } = require('pg'); // Client 대신 Pool (연결 풀) 임포트
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path'); // 파일 경로 처리
@@ -18,37 +18,42 @@ app.get('/', (req, res) => {
 });
 
 // ----------------------------------------------------
-// 💡 PostgreSQL 연결 안정화 로직 (자동 재연결)
+// 💡 PostgreSQL 연결 풀 (Pool) 사용 로직
 // ----------------------------------------------------
-let dbClient; // DB 연결 객체를 전역으로 선언
+let pool; // Pool 객체를 전역으로 선언
 
-function handleDisconnect() {
-    // 1. PostgreSQL 연결 설정: Render는 DATABASE_URL 환경 변수를 제공합니다.
-    dbClient = new Client({
-        connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/wetee' // 로컬 테스트용 기본값 포함
+function handleConnectPool() {
+    // 1. PostgreSQL 연결 풀 설정
+    pool = new Pool({
+        // Render는 Pool 객체에도 DATABASE_URL을 환경 변수로 제공합니다.
+        connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/wetee',
+        // 옵션: 유휴 연결 유지 시간 설정 (Render 환경에서 안정성 향상)
+        idleTimeoutMillis: 30000, // 30초 후 유휴 연결 정리
+        max: 20 // 최대 연결 개수
     });
 
-    dbClient.connect((err) => {
+    // Pool에서 오류 발생 시 처리 로직
+    pool.on('error', (err, client) => {
+        // 이 오류는 Pool 내부에서 자동으로 재연결을 시도하므로 서버를 종료하지 않습니다.
+        console.error('PostgreSQL Pool 오류 발생:', err.message, err.code);
+    });
+
+    // 초기 연결 테스트 (Pool 초기화 성공 확인)
+    pool.connect((err, client, done) => {
         if (err) {
-            console.error('PostgreSQL 연결 실패: 재시도 중...', err.code);
-            // 2초 후 재귀적으로 재연결 시도
-            setTimeout(handleDisconnect, 2000); 
-        } else {
-            console.log('PostgreSQL 데이터베이스 연결 성공!');
-            // TODO: (선택 사항) 연결 성공 후 users 테이블 생성 쿼리를 실행할 수 있습니다.
+            console.error('PostgreSQL 연결 풀 초기화 실패: 재시도 중...', err.code);
+            // 초기 연결 실패 시 2초 후 재시도
+            setTimeout(handleConnectPool, 2000); 
+            return;
         }
-    });
-
-    // 2. 연결 종료 이벤트 리스너: 연결이 끊기면 재연결 함수 호출
-    dbClient.on('error', (err) => {
-        console.error('PostgreSQL DB 오류 발생:', err.code);
-        dbClient.end(); // 기존 연결 종료
-        handleDisconnect(); // 재연결 시도
+        client.release(); // 연결 테스트 후 클라이언트를 Pool로 반환
+        console.log('PostgreSQL 연결 풀 초기화 및 DB 접속 성공!');
+        // DB 연결 성공 후에는 별도의 재연결 루프가 필요 없습니다.
     });
 }
 
 // 최초 연결 시도
-handleDisconnect();
+handleConnectPool();
 
 
 // 2. 회원가입 API ( /signup )
@@ -59,7 +64,7 @@ app.post('/signup', async (req, res) => {
     const sql = "INSERT INTO users (email, password, name, age, gender) VALUES ($1, $2, $3, $4, $5)";
     
     try {
-        await dbClient.query(sql, [id, pw, name, age, gender]);
+        await pool.query(sql, [id, pw, name, age, gender]); // dbClient.query 대신 pool.query 사용
         res.json({ success: true, message: '회원가입 성공!' });
     } catch (err) {
         console.error('회원가입 쿼리 오류:', err); 
@@ -79,7 +84,7 @@ app.post('/login', async (req, res) => {
     const sql = "SELECT name FROM users WHERE email = $1 AND password = $2";
 
     try {
-        const results = await dbClient.query(sql, [id, pw]); // 비동기 쿼리 실행
+        const results = await pool.query(sql, [id, pw]); // dbClient.query 대신 pool.query 사용
         
         if (results.rows.length > 0) { // PostgreSQL은 results.rows를 통해 결과를 확인
             const user = results.rows[0];
