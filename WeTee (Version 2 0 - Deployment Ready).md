@@ -26,8 +26,7 @@ https://wetee.onrender.com/
 | **오류 유형** | **원인 및 로그** | **해결 방법** | **최종 코드 반영** |
 | --- | --- | --- | --- |
 | Cannot GET / | Express 서버가 루트 경로(/)에 대해 응답할 파일(HTML)을 찾지 못함. | / 요청 시 “public/login.html”을 명시적으로 응답하도록 app.get(‘/’) 라우터 추가 | server.js |
-| 500 Internal Error(MySQL) | 1. DB_HOST가 localhost로 설정됨. 
-2. Render DB에 접속 정보 자체가 틀림. | DB를 MySQL에서 PostgreSQL로 전환하여 환경 변수 문제를 단순화합니다. | server.js |
+| 500 Internal Error(MySQL) | 1. DB_HOST가 localhost로 설정됨. 2. Render DB에 접속 정보 자체가 틀림. | DB를 MySQL에서 PostgreSQL로 전환하여 환경 변수 문제를 단순화합니다. | server.js |
 | ECONNREFUSED 반복 | Render DB 서비스가 절전 모드이거나, 웹 서비스가 DB 연결을 계속 거부당함. | DB 서비스를 수동 재시작하고, pgAdmin을 사용하여 DB 방화벽/비밀번호 인증 문제를 해결합니다. | DB 서비스 설정 |
 | 요청 pending 및 3초 끊김 | pg.Client 단일 연결 방식 사용으로, Render DB의 짧은 세션 타임아웃(약 3초) 발생 시 연결이 끊어짐. | pg.Pool(연결 풀) 방식으로 전환하여 DB 연결을 재사용하고 안정성 확보. | server.js |
 | 회원가입 500(테이블 없음) | users 테이블이 PostgreSQL DB에 생성되어 있지 않음. | pgAdmin의 Query Tool에서 CREATE TABLE users (…) 쿼리 실행 완료. | DB 설정 완료 |
@@ -63,33 +62,13 @@ WeTee/             (최상위 프로젝트 폴더)
 
 | **단계 (Step)** | **동작 (Action)** | **관련 파일 (Files)** | **핵심 코드 로직 및 상세 설명 (Code Logic & Detail)** |
 | --- | --- | --- | --- |
-| **1. 서버 부팅** | **초기화 및 DB 연결** | `package.json`
-`server.js`
-`database.sql` | • **실행**: `npm start` 명령이 `"start": "node server.js"`를 실행하여 진입점인 `server.js`를 깨웁니다.
-• **설정**: `express.static(..., { index: false })`로 `index.html` 자동 노출을 차단합니다.
-• **DB**: `new Pool` 생성 시 `idleTimeoutMillis: 30000`(30초 유휴 해제), `max: 20` 설정을 적용해 끊김을 방지하고, 실패 시 `setTimeout`으로 **5초 후 재시도**합니다. |
-| **2. 접속** | **강제 리다이렉트** | `server.js` | • **요청**: 사용자가 루트 경로(`/`)로 접속하면 `app.get('/')` 라우터가 이를 감지합니다.
-• **이동**: 즉시 `res.redirect('/login.html')`을 실행하여 메인 화면을 건너뛰고 **로그인 페이지로 강제 이동**시킵니다. |
-| **3. 렌더링** | **화면 표시** | `login.html`
-`style.css`
-`script.js` | • **스타일**: `style.css`가 로드되어 `.login-container` 등 UI 디자인을 입힙니다.
-• **노출**: `script.js`의 `checkLoginStatus()`가 실행되지만, 메인 페이지가 아니므로 `else` 블록이 작동, `document.body.style.display = 'flex'`를 통해 **검사 없이 화면을 즉시 표시**합니다. |
-| **4. 회원가입** | **검증 및 저장** | `script.js`
-`style.css`
-`server.js` | • **검증**: 비밀번호 입력 시 `validatePassword()`가 정규식(regex)을 확인하고, 실패 시 `.error-text`(`pwErrorMsg`)를 `block`으로 바꿔 경고합니다.
-• **저장**: `fetch('/signup')`로 전송된 데이터를 서버가 `INSERT`합니다. 이때 중복 이메일은 에러 코드 `'23505'`로 감지하여 처리합니다. |
-| **5. 로그인** | **인증 및 상태 저장** | `script.js`
-`server.js` | • **요청**: `fetch('/login')`로 아이디/비번을 전송합니다.
-• **조회**: 서버는 `SELECT` 쿼리로 일치하는 유저를 찾고 성공 시 이름을 반환합니다.
-• **저장**: 성공 응답을 받으면 `localStorage.setItem('isLoggedIn', 'true')`를 실행하고 `index.html`로 이동합니다. |
-| **6. 메인 진입** | **보안 검사 (Auth)** | `index.html`
-`script.js`
-`style.css` | • **숨김**: `index.html`의 `<body>`는 `style="display: none;"`으로 설정되어 있어 초기 로딩 시 **화면이 보이지 않습니다**.
-• **검사**: `checkLoginStatus()`가 실행되어 `localStorage` 정보를 확인합니다.
-• **결과**: 로그인 상태면 환영 문구와 함께 `display: flex`를 적용해 화면을 보여줍니다(세로 정렬). 비로그인 시 `alert` 후 쫓아냅니다. |
-| **7. 로그아웃** | **세션 삭제** | `index.html`
-`script.js` | • **실행**: 로그아웃 버튼 클릭 시 이벤트 리스너가 작동합니다.
-• **삭제**: `localStorage.removeItem(...)`으로 저장된 인증 정보를 모두 지우고 로그인 페이지로 이동합니다. |
+| **1. 서버 부팅** | **초기화 및 DB 연결** | `package.json`, `server.js`, `database.sql` | • **실행**: `npm start` 명령이 `"start": "node server.js"`를 실행하여 진입점인 `server.js`를 깨웁니다. • **설정**: `express.static(..., { index: false })`로 `index.html` 자동 노출을 차단합니다. • **DB**: `new Pool` 생성 시 `idleTimeoutMillis: 30000`(30초 유휴 해제), `max: 20` 설정을 적용해 끊김을 방지하고, 실패 시 `setTimeout`으로 **5초 후 재시도**합니다. |
+| **2. 접속** | **강제 리다이렉트** | `server.js` | • **요청**: 사용자가 루트 경로(`/`)로 접속하면 `app.get('/')` 라우터가 이를 감지합니다. • **이동**: 즉시 `res.redirect('/login.html')`을 실행하여 메인 화면을 건너뛰고 **로그인 페이지로 강제 이동**시킵니다. |
+| **3. 렌더링** | **화면 표시** | `login.html`, `style.css`, `script.js` | • **스타일**: `style.css`가 로드되어 `.login-container` 등 UI 디자인을 입힙니다. • **노출**: `script.js`의 `checkLoginStatus()`가 실행되지만, 메인 페이지가 아니므로 `else` 블록이 작동, `document.body.style.display = 'flex'`를 통해 **검사 없이 화면을 즉시 표시**합니다. |
+| **4. 회원가입** | **검증 및 저장** | `script.js`, `style.css`, `server.js` | • **검증**: 비밀번호 입력 시 `validatePassword()`가 정규식(regex)을 확인하고, 실패 시 `.error-text`(`pwErrorMsg`)를 `block`으로 바꿔 경고합니다. • **저장**: `fetch('/signup')`로 전송된 데이터를 서버가 `INSERT`합니다. 이때 중복 이메일은 에러 코드 `'23505'`로 감지하여 처리합니다. |
+| **5. 로그인** | **인증 및 상태 저장** | `script.js`, `server.js` | • **요청**: `fetch('/login')`로 아이디/비번을 전송합니다. • **조회**: 서버는 `SELECT` 쿼리로 일치하는 유저를 찾고 성공 시 이름을 반환합니다. • **저장**: 성공 응답을 받으면 `localStorage.setItem('isLoggedIn', 'true')`를 실행하고 `index.html`로 이동합니다. |
+| **6. 메인 진입** | **보안 검사 (Auth)** | `index.html`, `script.js`, `style.css` | • **숨김**: `index.html`의 `<body>`는 `style="display: none;"`으로 설정되어 있어 초기 로딩 시 **화면이 보이지 않습니다**. • **검사**: `checkLoginStatus()`가 실행되어 `localStorage` 정보를 확인합니다. • **결과**: 로그인 상태면 환영 문구와 함께 `display: flex`를 적용해 화면을 보여줍니다(세로 정렬). 비로그인 시 `alert` 후 쫓아냅니다. |
+| **7. 로그아웃** | **세션 삭제** | `index.html`, `script.js` | • **실행**: 로그아웃 버튼 클릭 시 이벤트 리스너가 작동합니다. • **삭제**: `localStorage.removeItem(...)`으로 저장된 인증 정보를 모두 지우고 로그인 페이지로 이동합니다. |
 
 ### 1단계: 서버 부팅 및 DB 연결 (Server Initialization)
 
@@ -98,15 +77,15 @@ WeTee/             (최상위 프로젝트 폴더)
 1. 서버 실행 명령:
 - package.json의 scripts 설정인 "start": "node server.js"가 실행되어 server.js를 깨웁니다.
 - "main": "server.js" 설정은 이 패키지의 진입점이 server.js임을 명시합니다.
-1. 미들웨어 및 정적 파일 설정:
+2. 미들웨어 및 정적 파일 설정:
 - 라이브러리 로드: express, pg, cors, body-parser가 로드됩니다.
 - 공통 미들웨어: app.use(cors())로 도메인 간 통신을 허용하고, app.use(bodyParser.json())으로 JSON 데이터를 받을 준비를 합니다.
 - 정적 파일 경로: app.use(express.static(..., { index: false })) 코드가 실행됩니다. 이는 public 폴더를 개방하되, 루트 접속 시 index.html을 자동으로 보여주는 기본 기능을 끄는(false) 핵심 설정입니다.
-1. 데이터베이스(DB) 연결 풀 생성:
+3. 데이터베이스(DB) 연결 풀 생성:
 - new Pool({...})을 통해 PostgreSQL 연결 설정을 초기화합니다.
 - 안정성 설정: idleTimeoutMillis: 30000 (30초 유휴 시 연결 해제)과 max: 20 (최대 접속 20명) 설정이 적용되어 클라우드 환경에서의 끊김을 방지합니다.
 - 스키마 정의: 이 DB는 database.sql에 정의된 대로 users 테이블(id, email, password, name, age, gender)을 포함합니다.
-1. DB 연결 실행:
+4. DB 연결 실행:
 - connectToDB() 함수가 실행됩니다. 연결 실패 시 setTimeout을 통해 5초 후 재시도하는 로직이 작동하여 서버가 죽지 않고 DB를 기다립니다.
 
 ### 2단계: 클라이언트 접속 및 리다이렉트 (Access & Redirect)
@@ -116,7 +95,7 @@ WeTee/             (최상위 프로젝트 폴더)
 1. 루트 경로 요청:
 - 사용자가 / 경로로 접속합니다.
 - server.js의 app.get('/', ...) 라우터가 요청을 받습니다.
-1. 강제 이동:
+2. 강제 이동:
 - 서버는 res.redirect('/login.html') 응답을 보내, 사용자를 즉시 로그인 페이지로 강제 이동시킵니다.
 
 ### 3단계: 로그인/회원가입 화면 렌더링 (Frontend Rendering)
@@ -126,7 +105,7 @@ WeTee/             (최상위 프로젝트 폴더)
 1. 스타일 적용:
 - HTML 파일들은 <link rel="stylesheet" href="style.css">를 로드합니다.
 - style.css는 .login-container로 박스를 중앙 정렬하고, input 태그들의 디자인을 정의합니다.
-1. 스크립트 로드 및 화면 표시:
+2. 스크립트 로드 및 화면 표시:
 - HTML 하단에서 <script src="script.js"></script>를 로드합니다.
 - 초기화 로직: script.js가 로드되면 맨 아래의 checkLoginStatus()가 즉시 실행됩니다.
 - 화면 노출: 현재 페이지가 메인(index.html)이 아니므로, else 블록이 실행되어 document.body.style.display = 'flex'가 적용됩니다. 즉, 로그인 화면은 검사 없이 바로 보여집니다.
@@ -136,9 +115,9 @@ WeTee/             (최상위 프로젝트 폴더)
 1. 입력값 검증 (프론트엔드):
 - 사용자가 비밀번호를 입력할 때마다 signupPwInput의 input 이벤트가 발생해 validatePassword() 함수를 실행합니다.
 - 정규식(regex)을 통과하지 못하면 pwErrorMsg(style.css의 .error-text)를 block으로 바꿔 경고 메시지를 보여줍니다.
-1. 데이터 전송:
+2. 데이터 전송:
 - 가입 버튼 클릭 시 fetch 함수가 실행되어 입력된 데이터를 JSON으로 변환해 /signup 주소로 POST 요청을 보냅니다.
-1. DB 저장 (백엔드):
+3. DB 저장 (백엔드):
 - server.js의 app.post('/signup') 라우터가 데이터를 받습니다.
 - INSERT INTO users ... SQL 쿼리를 실행합니다.
 - 중복 처리: 만약 이메일이 이미 존재하면 DB 에러 코드 '23505'를 감지하여 클라이언트에게 "이미 가입된 이메일입니다"라는 메시지를 반환합니다.
@@ -147,10 +126,10 @@ WeTee/             (최상위 프로젝트 폴더)
 
 1. 로그인 요청:
 - login.html에서 폼 제출 시, script.js가 아이디/비번을 /login으로 POST 전송합니다.
-1. 사용자 조회 (백엔드):
+2. 사용자 조회 (백엔드):
 - server.js의 app.post('/login') 라우터가 SELECT name FROM users WHERE ... 쿼리를 실행합니다.
 - 일치하는 사용자가 있으면(results.rows.length > 0) 성공 응답과 사용자 이름을 보냅니다.
-1. 상태 저장 (프론트엔드):
+3. 상태 저장 (프론트엔드):
 - 응답이 성공이면 script.js는 localStorage에 isLoggedIn = 'true'와 currentUser를 저장하고, index.html로 페이지를 이동시킵니다.
 
 ### 6단계: 메인 화면 보안 및 표시 (Main Page & Auth Check)
@@ -159,10 +138,10 @@ WeTee/             (최상위 프로젝트 폴더)
 
 1. 초기 화면 숨김 (Flash 방지):
 - index.html의 <body> 태그는 style="display: none;" 속성을 가지고 있어, 브라우저가 파일을 읽어도 화면에는 아무것도 나오지 않습니다.
-1. 권한 검사:
+2. 권한 검사:
 - script.js의 checkLoginStatus() 함수가 실행됩니다.
 - 검사 조건: window.location.pathname을 확인해 현재 페이지가 메인 화면인지 판단합니다.
-1. 분기 처리:
+3. 분기 처리:
 - Case A: 로그인 안 함: localStorage에 정보가 없으면 alert을 띄우고 즉시 login.html로 쫓아냅니다. 화면은 여전히 보이지 않습니다.
 - Case B: 로그인 함: localStorage 정보가 확인되면:
     1. welcomeMsg 태그에 "000님 안녕하세요!" 텍스트를 넣습니다.
@@ -808,16 +787,10 @@ Render 무료 티어 정책 비교 표
 | 구분 | Web Service (Node.js 서버) | PostgreSQL (데이터베이스) |
 | --- | --- | --- |
 | 핵심 개념 | 월간 이용권 (Time Bank) | 유통기한 (Expiration Date) |
-| 비유 | 휴대폰 데이터 요금제
-(매달 충전됩니다.) | 우유 유통기한
-(개봉하든 안 하든 날짜 지나면 끝납니다.) |
-| 무료 제공량 | 매월 750시간
-(24시간 × 31일 = 744시간이므로 한 달 내내 충분) | 생성일로부터 90일
-(90일이 지나면 데이터베이스 만료/삭제됩니다.) |
-| 초기화(리셋) 시점 | 매달 1일
-(사용량이 0시간으로 자동 초기화) | 초기화 없습니다.
+| 비유 | 휴대폰 데이터 요금제(매달 충전됩니다.) | 우유 유통기한(개봉하든 안 하든 날짜 지나면 끝납니다.) |
+| 무료 제공량 | 매월 750시간(24시간 × 31일 = 744시간이므로 한 달 내내 충분) | 생성일로부터 90일(90일이 지나면 데이터베이스 만료/삭제됩니다.) |
+| 초기화(리셋) 시점 | 매달 1일(사용량이 0시간으로 자동 초기화) | 초기화 없습니다.
 (90일 카운트다운은 멈추거나 리셋되지 않습니다.) |
-| 삭제 후 재생성 시 | 누적 적용
-(지웠다 다시 만들어도 이번 달 이미 쓴 시간은 그대로 남습니다.) | 새로 시작 (Reset)
+| 삭제 후 재생성 시 | 누적 적용(지웠다 다시 만들어도 이번 달 이미 쓴 시간은 그대로 남습니다.) | 새로 시작 (Reset)
 (새로 만들면 다시 90일짜리 새것을 받습니다. 85일 남는 게 아닙니다.) |
 | 제한 사항 | 개수 제한 없음 (시간 총합만 750시간 이내면 됩니다.) | 계정당 1개만 생성 가능합니다. |
